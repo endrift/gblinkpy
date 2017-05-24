@@ -24,6 +24,8 @@ class Link:
         return self.tx(0)
 
 class GBlinkDL:
+    DELAY = 0.00005
+
     def __init__(self, link):
         self.link = link
         self.connected = False
@@ -37,26 +39,29 @@ class GBlinkDL:
     def _connect(self):
         connected = False
         for i in range(100):
-            if self.link.tx(0x9A) == 0xB4:
+            if self._write8(0x9A) == 0xB4:
                 connected = True
                 break
-            time.sleep(0.001)
 
         if not connected:
             return False
         connected = False
+        time.sleep(0.001)
 
         for i in range(100):
-            if self.link.tx(0x9A) == 0x1D:
+            if self._write8(0x9A) == 0x1D:
                 connected = True
                 break
-            time.sleep(0.001)
 
         return connected
 
     def _read8(self):
-        time.sleep(0.00002)
+        time.sleep(self.DELAY)
         return self.link.rx()
+
+    def _write8(self, value):
+        time.sleep(self.DELAY)
+        return self.link.tx(value)
 
     def _read16(self):
         return (self._read8() << 8) | self._read8()
@@ -91,3 +96,17 @@ class GBlinkDL:
         self.connected = True
         self.rom = self._read_bytestring(0x4000)
         return True
+
+    def read(self, address, length=1):
+        self._write8(0x59)
+        self._write8(address >> 8)
+        self._write8(address & 0xFF)
+        self._write8(length >> 8)
+        self._write8(length & 0xFF)
+        return self._read_bytestring(length)
+
+    def write(self, address, value):
+        self._write8(0x49)
+        self._write8(address >> 8)
+        self._write8(address & 0xFF)
+        self._write8(value)
