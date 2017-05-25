@@ -152,7 +152,7 @@ PARPORT_EPP_FAST = 1
 PARPORT_W91284PIC = 2
 
 
-class Parallel:
+class Parallel(IParallel):
     """Class for controlling the pins on a parallel port
 
     This class provides bit-level access to the pins on a PC parallel
@@ -292,6 +292,7 @@ class Parallel:
     def get_status(self):
         ret = struct.pack('B', 0)
         ret = fcntl.ioctl(self._fd, PPRSTATUS, ret)
+        return struct.unpack('B', ret)[0]
 
     def set_data(self, byte):
         fcntl.ioctl(self._fd, PPWDATA, struct.pack('B', byte))
