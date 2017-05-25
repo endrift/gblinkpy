@@ -92,6 +92,27 @@ class LinkDL:
 class MBC(object):
     def __init__(self, dl):
         self.dl = dl
+        if dl.romsize < 8:
+            self.nbanks = 2 << dl.romsize
+        elif dl.romsize == 0x52:
+            self.nbanks = 72
+        elif dl.romsize == 0x53:
+            self.nbanks = 80
+        elif dl.romsize == 0x54:
+            self.nbanks = 96
+
+        if dl.ramsize == 1:
+            self.ramsize = 0x800
+        elif dl.ramsize == 2:
+            self.ramsize = 0x2000
+        elif dl.ramsize == 3:
+            self.ramsize = 0x8000
+        elif dl.ramsize == 4:
+            self.ramsize = 0x20000
+        elif dl.ramsize == 5:
+            self.ramsize = 0x10000
+        else:
+            self.ramsize = 0
 
     def unlock_ram(self):
         self.dl.write(0x0000, 0xA)
@@ -102,11 +123,38 @@ class MBC(object):
     def select_ram_bank(self, bank):
         self.dl.write(0x4000, bank)
 
+    def dump_rom(self):
+        rom = [self.dl.rom]
+        for i in range(1, self.nbanks):
+            self.select_rom_bank(i)
+            rom.append(self.dl.read(0x4000, 0x4000))
+        return b''.join(rom)
+
+    def dump_ram(self):
+        ram = []
+        for i in range(self.ramsize / 0x800):
+            if not i & 3:
+                self.select_ram_bank(i / 4)
+            ram.append(self.dl.read(0xA000 + (i & 3) * 0x800, 0x800))
+        return b''.join(ram)
+
+class MBC1(MBC):
+    BANK_MODE_ROM = 0
+    BANK_MODE_RAM = 1
+    def set_bank_mode(self, mode):
+        self.dl.write(0x6000, mode)
+
+    def select_rom_bank(self, bank):
+        self.set_bank_mode(self.BANK_MODE_ROM)
+        super(MBC1, self).select_rom_bank(bank & 0x1F)
+        self.dl.write(0x4000, bank >> 5)
+
+    def select_ram_bank(self, bank):
+        self.set_bank_mode(self.BANK_MODE_RAM)
+        super(MBC1, self).select_ram_bank(bank)
+
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
-
-    def __init__(self, dl):
-        super(MBC7, self).__init__(dl)
 
     def unlock_ram(self):
         super(MBC7, self).unlock_ram()
@@ -163,7 +211,7 @@ class MBC7(MBC):
             b |= bs[i] << (15 - i)
         return b
 
-    def ram_dump(self):
+    def dump_ram(self):
         bstring = b''
         for i in range(0x80):
             word = self.ram_read(i)
