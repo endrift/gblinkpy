@@ -46,6 +46,7 @@
 #     * * * * . . . .  Unused
 import ctypes
 import os
+from . import IParallel
 
 LPT1 = 0
 LPT2 = 1
@@ -55,86 +56,43 @@ LPT2_base = 0x0278
 
 # need to patch PATH so that the DLL can be found and loaded
 os.environ['PATH'] = os.environ['PATH'] + ';' + os.path.abspath(os.path.dirname(__file__))
-# fake module, names of the functions are the same as in the old _pyparallel
-# python extension in earlier versions of this modules
-_pyparallel = ctypes.windll.simpleio
-# need to initialize giveio on WinNT based systems
-if _pyparallel.init():
-    raise IOError('Could not access the giveio driver which is required on NT based systems.')
+try:
+    inpout = ctypes.windll.inpoutx64
+except:
+    inpout = ctypes.windll.inpout32
 
 
-class Parallel:
+class Parallel(IParallel):
     def __init__(self, port=LPT1):
         if port == LPT1:
             self.dataRegAdr = LPT1_base
         elif port == LPT2:
             self.dataRegAdr = LPT2_base
         else:
-            raise ValueError("No such port available - expecting a number")
+            self.dataRegAdr = port
         self.statusRegAdr = self.dataRegAdr + 1
         self.ctrlRegAdr = self.dataRegAdr + 2
-        self.ctrlReg = _pyparallel.inp(self.ctrlRegAdr)
 
-    def setData(self, value):
-        _pyparallel.outp(self.dataRegAdr, value)
+    def set_data(self, value):
+        inpout.Out32(self.dataRegAdr, value)
 
-    def setDataDir(self, level):
+    def get_data(self):
+        return inpout.Inp32(self.dataRegAdr)
+
+    def set_data_dir(self, level):
         """set for port as input, clear for output"""
+        ctrlReg = self.get_control()
         if level:
-            self.ctrlReg |= 0x20
+            ctrlReg |= 0x20
         else:
-            self.ctrlReg &= ~0x20
-        _pyparallel.outp(self.ctrlRegAdr, self.ctrlReg)
+            ctrlReg &= ~0x20
+        inpout.Out32(self.ctrlRegAdr, ctrlReg)
 
-    # control register output functions
-    def setDataStrobe(self, level):
-        """data strobe bit"""
-        if level:
-            self.ctrlReg = self.ctrlReg & ~0x01
-        else:
-            self.ctrlReg = self.ctrlReg | 0x01
-        _pyparallel.outp(self.ctrlRegAdr, self.ctrlReg)
+    def get_status(self):
+        return inpout.Inp32(self.statusRegAdr)
 
-    def setAutoFeed(self, level):
-        """auto feed bit"""
-        if level:
-            self.ctrlReg = self.ctrlReg & ~0x02
-        else:
-            self.ctrlReg = self.ctrlReg | 0x02
-        _pyparallel.outp(self.ctrlRegAdr, self.ctrlReg)
+    def set_control(self, value):
+        inpout.Out32(self.ctrlRegAdr, value)
 
-    def setInitOut(self, level):
-        """initialize bit"""
-        if level:
-            self.ctrlReg = self.ctrlReg | 0x04
-        else:
-            self.ctrlReg = self.ctrlReg & ~0x04
-        _pyparallel.outp(self.ctrlRegAdr, self.ctrlReg)
-
-    def setSelect(self, level):
-        """select bit"""
-        if level:
-            self.ctrlReg = self.ctrlReg & ~0x08
-        else:
-            self.ctrlReg = self.ctrlReg | 0x08
-        _pyparallel.outp(self.ctrlRegAdr, self.ctrlReg)
-
-    def getInError(self):
-        """Error pin"""
-        return _pyparallel.inp(self.statusRegAdr) & 0x08 and 1
-
-    def getInSelected(self):
-        """select pin"""
-        return _pyparallel.inp(self.statusRegAdr) & 0x10 and 1
-
-    def getInPaperOut(self):
-        """paper out pin"""
-        return _pyparallel.inp(self.statusRegAdr) & 0x20 and 1
-
-    def getInAcknowledge(self):
-        """Acknowledge pin"""
-        return _pyparallel.inp(self.statusRegAdr) & 0x40 and 1
-
-    def getInBusy(self):
-        """input from busy pin"""
-        return not (_pyparallel.inp(self.statusRegAdr) & 0x80)
+    def get_control(self):
+        return inpout.Inp32(self.ctrlRegAdr)

@@ -24,7 +24,7 @@ class Link:
         return self.tx(0)
 
 class GBlinkDL:
-    DELAY = 0.00005
+    DELAY = 0.001
 
     def __init__(self, link):
         self.link = link
