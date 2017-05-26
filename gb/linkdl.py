@@ -179,6 +179,23 @@ class MBC1(MBC):
             rom.append(self.dl.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000))
         return b''.join(rom)
 
+class MBC3(MBC):
+    def lactch_rtc(self):
+        self.dl.write(0x6000, 0)
+        self.dl.write(0x6000, 1)
+
+    def read_rtc(self, reg):
+        self.select_ram_bank(8 + reg)
+        return self.dl.read(0xA000)
+
+class MBC5(MBC):
+    def select_rom_bank(self, bank):
+        super(MBC5, self).select_rom_bank(bank & 0xFF)
+        self.dl.write(0x3000, bank >> 8)
+
+    def set_rumble(self, on=True):
+        self.select_ram_bank(8 * on)
+
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
 
