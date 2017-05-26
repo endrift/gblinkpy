@@ -1,8 +1,9 @@
+import hashlib
 import struct
 import time
 
 class LinkDL:
-    DELAY = 0.001
+    DELAY = 0.0001
 
     def __init__(self, link):
         self.link = link
@@ -83,6 +84,24 @@ class LinkDL:
         self._write8(length & 0xFF)
         return self._read_bytestring(length)
 
+    def read_ec(self, address, size, limit=None):
+        bstrings = []
+        for x in range(address, address + size, 0x800):
+            hashes = set()
+            retries = 0
+            while True:
+                data = self.read(x, 0x800 if size >= 0x800 else size)
+                h = hashlib.sha1(data).digest()
+                if h in hashes:
+                    bstrings.append(data)
+                    break
+                hashes.add(h)
+                retries += 1
+                if limit > 0 and retries > limit:
+                    return None
+            size -= 0x800
+        return b''.join(bstrings)
+
     def write(self, address, value):
         self._write8(0x49)
         self._write8(address >> 8)
@@ -124,10 +143,10 @@ class MBC(object):
         self.dl.write(0x4000, bank)
 
     def dump_rom(self):
-        rom = [self.dl.rom]
+        rom = [self.dl.read_ec(0x0, 0x4000)]
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
-            rom.append(self.dl.read(0x4000, 0x4000))
+            rom.append(self.dl.read_ec(0x4000, 0x4000))
         return b''.join(rom)
 
     def dump_ram(self):
@@ -135,7 +154,7 @@ class MBC(object):
         for i in range(self.ramsize / 0x800):
             if not i & 3:
                 self.select_ram_bank(i / 4)
-            ram.append(self.dl.read(0xA000 + (i & 3) * 0x800, 0x800))
+            ram.append(self.dl.read_ec(0xA000 + (i & 3) * 0x800, 0x800))
         return b''.join(ram)
 
 class MBC1(MBC):
