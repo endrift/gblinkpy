@@ -164,13 +164,20 @@ class MBC1(MBC):
         self.dl.write(0x6000, mode)
 
     def select_rom_bank(self, bank):
-        self.set_bank_mode(self.BANK_MODE_ROM)
+        self.set_bank_mode(self.BANK_MODE_RAM)
         super(MBC1, self).select_rom_bank(bank & 0x1F)
         self.dl.write(0x4000, bank >> 5)
 
     def select_ram_bank(self, bank):
         self.set_bank_mode(self.BANK_MODE_RAM)
         super(MBC1, self).select_ram_bank(bank)
+
+    def dump_rom(self):
+        rom = [self.dl.read_ec(0x0, 0x4000)]
+        for i in range(1, self.nbanks):
+            self.select_rom_bank(i)
+            rom.append(self.dl.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000))
+        return b''.join(rom)
 
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
