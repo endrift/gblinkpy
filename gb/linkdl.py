@@ -1,3 +1,4 @@
+import datetime
 import hashlib
 import struct
 import time
@@ -180,13 +181,21 @@ class MBC1(MBC):
         return b''.join(rom)
 
 class MBC3(MBC):
-    def lactch_rtc(self):
+    def latch_rtc(self):
         self.dl.write(0x6000, 0)
         self.dl.write(0x6000, 1)
 
     def read_rtc(self, reg):
         self.select_ram_bank(8 + reg)
         return self.dl.read(0xA000)
+
+    def get_time(self, latch=True):
+        if latch:
+            self.latch_rtc()
+        hour = ord(self.read_rtc(2))
+        minute = ord(self.read_rtc(1))
+        second = ord(self.read_rtc(0))
+        return datetime.time(hour, minute, second)
 
 class MBC5(MBC):
     def select_rom_bank(self, bank):
