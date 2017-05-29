@@ -167,3 +167,39 @@ class MBC7(MBC):
             bstring += chr(word >> 8)
             bstring += chr(word & 0xFF)
         return bstring
+
+MAPPINGS = {
+    0x00: MBC,
+    0x01: MBC1,
+    0x02: MBC1,
+    0x03: MBC1,
+    #0x05: MBC2,
+    #0x06: MBC2,
+    0x08: MBC,
+    0x09: MBC,
+    #0x0B: MMM01,
+    #0x0C: MMM01,
+    #0x0D: MMM01,
+    0x0F: MBC3,
+    0x10: MBC3,
+    0x11: MBC3,
+    0x12: MBC3,
+    0x13: MBC3,
+    0x19: MBC5,
+    0x1A: MBC5,
+    0x1B: MBC5,
+    0x1C: MBC5,
+    0x1D: MBC5,
+    0x1E: MBC5,
+    #0x20: MBC6,
+    0x22: MBC7,
+    #0xFC: GBCamera,
+    #0xFD: TAMA5,
+    #0xFE: HuC3,
+    #0xFF: HuC1
+}
+
+def detect(conn):
+    if conn.carttype not in MAPPINGS:
+        return None
+    return MAPPINGS[conn.carttype](conn)
