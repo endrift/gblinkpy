@@ -107,3 +107,9 @@ class LinkDL:
         self._write8(address >> 8)
         self._write8(address & 0xFF)
         self._write8(value)
+
+    def write_ec(self, address, value):
+        while True:
+            self.write(address, value)
+            if ord(self.read(address)) == value:
+                break
