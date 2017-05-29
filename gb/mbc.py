@@ -105,6 +105,14 @@ class MBC5(MBC):
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
 
+    EWDS = (0, 0, 0, 0)
+    WRAL = (0, 0, 0, 1)
+    ERAL = (0, 0, 1, 0)
+    EWEN = (0, 0, 1, 1)
+    WRITE = (0, 1)
+    READ = (1, 0)
+    ERASE = (1, 1)
+
     def unlock_ram(self):
         super(MBC7, self).unlock_ram()
         self.select_ram_bank(0x40)
@@ -119,7 +127,17 @@ class MBC7(MBC):
 
     def eeprom_init(self):
         self.conn.write(0xA080, 0)
+        self.conn.write(0xA080, 0x80)
+
+    def eeprom_send_command(self, header, address=0):
+        self.eeprom_init()
         self.eeprom_shift_ins((0, 1))
+        if len(header) == 2:
+            self.eeprom_shift_ins(header)
+            self.eeprom_shift_address(address)
+        else:
+            self.eeprom_shift_ins(header)
+            self.eeprom_shift_ins([0] * (10 - len(header)))
 
     def eeprom_shift_in(self, b):
         self.conn.write(0xA080, 0x80 | ((b & 1) << 1))
@@ -149,16 +167,31 @@ class MBC7(MBC):
         for i in range(7, -1, -1):
             self.eeprom_shift_in(addr >> i)
 
+    def eeprom_wait(self):
+        # Clock the EEPROM while it's still doing stuff
+        while self.eeprom_shift_inout(0) == (0,):
+            pass
+
     def ram_read(self, address):
-        self.eeprom_init()
-        self.eeprom_shift_ins((1, 0))
-        self.eeprom_shift_address(address)
+        self.eeprom_send_command(self.READ, address)
         bs = self.eeprom_shift_outs(16)
-        self.eeprom_shift_in(0)
         b = 0
         for i in range(len(bs)):
             b |= bs[i] << (15 - i)
         return b
+
+    def enable_write(self):
+        self.eeprom_send_command(self.EWEN)
+
+    def disable_write(self):
+        self.eeprom_send_command(self.EWDS)
+
+    def ram_write(self, address, word):
+        self.eeprom_send_command(self.WRITE, address)
+        # FIXME: Is there a prettier way to do this?
+        bs = [ord(x) - ord('0') for x in '{:016b}'.format(word)]
+        self.eeprom_shift_ins(bs)
+        self.eeprom_wait()
 
     def dump_ram(self):
         bstring = b''
@@ -167,6 +200,14 @@ class MBC7(MBC):
             bstring += chr(word >> 8)
             bstring += chr(word & 0xFF)
         return bstring
+
+    def restore_ram(self, ram):
+        self.enable_write()
+        for i in range(0x80):
+            word = ord(ram[i * 2]) << 8
+            word += ord(ram[i * 2 + 1])
+            self.ram_write(i, word)
+        self.disable_write()
 
 MAPPINGS = {
     0x00: MBC,
