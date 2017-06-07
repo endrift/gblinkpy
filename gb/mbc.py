@@ -209,6 +209,31 @@ class MBC7(MBC):
             self.ram_write(i, word)
         self.disable_write()
 
+class GBCamera(MBC):
+    def select_camera(self):
+        self.select_ram_bank(0x10)
+
+    def set_camera_defaults(self):
+        self.set_exposure(0x1000)
+
+    def set_dither_matrix(self, matrix):
+        self.select_camera()
+        for x in range(4):
+            for y in range(4):
+                for l in range(3):
+                    self.conn.write(0xA006 + y * 3 + x * 12 + l, matrix[y][x][l])
+
+    def set_exposure(self, value):
+        self.select_camera()
+        self.conn.write(0xA002, value >> 8)
+        self.conn.write(0xA003, value & 0xFF)
+
+    def take_photo(self):
+        self.select_camera()
+        self.conn.write(0xA000, 1)
+        while ord(self.conn.read_ec(0xA000)) & 1:
+           time.sleep(0.05)
+
 MAPPINGS = {
     0x00: MBC,
     0x01: MBC1,
@@ -234,7 +259,7 @@ MAPPINGS = {
     0x1E: MBC5,
     #0x20: MBC6,
     0x22: MBC7,
-    #0xFC: GBCamera,
+    0xFC: GBCamera,
     #0xFD: TAMA5,
     #0xFE: HuC3,
     #0xFF: HuC1
