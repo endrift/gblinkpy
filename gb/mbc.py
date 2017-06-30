@@ -34,11 +34,13 @@ class MBC(object):
     def select_ram_bank(self, bank):
         self.conn.write(0x4000, bank)
 
-    def dump_rom(self):
+    def dump_rom(self, cb=None):
         rom = [self.conn.read_ec(0x0, 0x4000)]
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
             rom.append(self.conn.read_ec(0x4000, 0x4000))
+            if cb:
+                cb(i, rom[-1])
         return b''.join(rom)
 
     def dump_ram(self):
@@ -70,11 +72,13 @@ class MBC1(MBC):
         self.set_bank_mode(self.BANK_MODE_RAM)
         super(MBC1, self).select_ram_bank(bank)
 
-    def dump_rom(self):
+    def dump_rom(self, cb=None):
         rom = [self.conn.read_ec(0x0, 0x4000)]
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
             rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000))
+            if cb:
+                cb(i, rom[-1])
         return b''.join(rom)
 
 class MBC3(MBC):

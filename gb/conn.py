@@ -113,3 +113,28 @@ class LinkDL:
             self.write(address, value)
             if ord(self.read(address)) == value:
                 break
+
+class Link2(LinkDL):
+    DELAY = 0.001
+
+    def read_ec(self, address, length, limit=None):
+        while limit is None or limit > 0:
+            self._write8(0x5b)
+            self._write8(address >> 8)
+            self._write8(address & 0xFF)
+            self._write8(length >> 8)
+            self._write8(length & 0xFF)
+            bstring = b''
+            calculated_checksum = 0
+            for _ in range(length):
+                x = self._read8()
+                calculated_checksum += x
+                calculated_checksum &= 0xFFFF
+                bstring += struct.pack("B", x)
+            checksum = (self._read8() << 8) | self._read8()
+            if calculated_checksum == checksum:
+                return bstring
+            if limit is not None:
+                limit -= 1
+        return None
+
