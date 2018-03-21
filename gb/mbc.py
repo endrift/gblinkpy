@@ -45,16 +45,16 @@ class MBC(object):
 
     def dump_ram(self):
         ram = []
-        for i in range(self.ramsize / 0x800):
+        for i in range(self.ramsize // 0x800):
             if not i & 3:
-                self.select_ram_bank(i / 4)
+                self.select_ram_bank(i // 4)
             ram.append(self.conn.read_ec(0xA000 + (i & 3) * 0x800, 0x800))
         return b''.join(ram)
 
     def restore_ram(self, ram):
         for i in range(self.ramsize):
             if not i & 0x1FFF:
-                self.select_ram_bank(i / 0x2000)
+                self.select_ram_bank(i // 0x2000)
             self.conn.write_ec(0xA000 + (i & 0x1FFF), ord(ram[i]))
 
 class MBC1(MBC):

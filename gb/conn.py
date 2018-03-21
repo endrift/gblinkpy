@@ -84,7 +84,7 @@ class LinkDL:
         self._write8(length & 0xFF)
         return self._read_bytestring(length)
 
-    def read_ec(self, address, size, limit=None):
+    def read_ec(self, address, size=1, limit=None):
         bstrings = []
         for x in range(address, address + size, 0x800):
             hashes = set()
@@ -97,7 +97,7 @@ class LinkDL:
                     break
                 hashes.add(h)
                 retries += 1
-                if limit > 0 and retries > limit:
+                if limit is not None and limit > 0 and retries > limit:
                     return None
             size -= 0x800
         return b''.join(bstrings)
