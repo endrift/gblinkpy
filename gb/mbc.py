@@ -238,6 +238,56 @@ class GBCamera(MBC):
         while ord(self.conn.read_ec(0xA000)) & 1:
            time.sleep(0.05)
 
+class TAMA5(MBC):
+    def __init__(self, conn):
+        super(TAMA5, self).__init__(conn)
+        self.ramsize = 0x20
+
+    def unlock_ram(self):
+        self.conn.write(0xA001, 0xA)
+        for _ in range(200):
+            if ord(self.conn.read_ec(0xA000)) & 3 == 1:
+                break
+
+    def select_rom_bank(self, bank):
+        self.unlock_ram()
+        self.conn.write(0xA001, 0)
+        self.conn.write(0xA000, bank & 0xF)
+        self.conn.write(0xA001, 1)
+        self.conn.write(0xA000, bank >> 4)
+
+    def select_ram_bank(self, bank):
+        pass
+
+    def dump_ram(self):
+        self.unlock_ram()
+        ram = []
+        for i in range(self.ramsize):
+            self.conn.write(0xA001, 6)
+            self.conn.write(0xA000, (i >> 4) + 2)
+            self.conn.write(0xA001, 7)
+            self.conn.write(0xA000, i & 0xF)
+            self.conn.write(0xA001, 0xD)
+            hi = ord(self.conn.read_ec(0xA000)) & 0xF
+            self.conn.write(0xA001, 0xC)
+            lo = ord(self.conn.read_ec(0xA000)) & 0xF
+            ram.append((hi << 4) | lo)
+        return bytes(ram)
+
+    def restore_ram(self, ram):
+        self.unlock_ram()
+        for i in range(self.ramsize):
+            self.conn.write(0xA001, 4)
+            self.conn.write(0xA000, i & 0xF)
+            self.conn.write(0xA001, 5)
+            self.conn.write(0xA000, i >> 4)
+            self.conn.write(0xA001, 6)
+            self.conn.write(0xA000, i >> 4)
+            self.conn.write(0xA001, 7)
+            self.conn.write(0xA000, i & 0xF)
+
+
+
 MAPPINGS = {
     0x00: MBC,
     0x01: MBC1,
@@ -264,7 +314,7 @@ MAPPINGS = {
     #0x20: MBC6,
     0x22: MBC7,
     0xFC: GBCamera,
-    #0xFD: TAMA5,
+    0xFD: TAMA5,
     #0xFE: HuC3,
     #0xFF: HuC1
 }
