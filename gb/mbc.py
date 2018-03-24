@@ -81,6 +81,24 @@ class MBC1(MBC):
                 cb(i, rom[-1])
         return b''.join(rom)
 
+class MBC2(MBC):
+    def __init__(self, conn):
+        super(MBC2, self).__init__(conn)
+        self.ramsize = 0x100
+
+    def dump_ram(self):
+        bs = self.conn.read_ec(0xA000, 0x200)
+        ram = []
+        for i in range(self.ramsize):
+            ram.append(((bs[i * 2 + 1] & 0xF) << 4) | (bs[i * 2] & 0xF))
+        return bytes(ram)
+
+    def restore_ram(self, ram):
+        for i in range(len(ram)):
+            b = ram[i]
+            self.conn.write_ec(0xA000 + i * 2, 0xF0 | (b & 0xF))
+            self.conn.write_ec(0xA001 + i * 2, 0xF0 | (b >> 4))
+
 class MBC3(MBC):
     def latch_rtc(self):
         self.conn.write(0x6000, 0)
@@ -293,8 +311,8 @@ MAPPINGS = {
     0x01: MBC1,
     0x02: MBC1,
     0x03: MBC1,
-    #0x05: MBC2,
-    #0x06: MBC2,
+    0x05: MBC2,
+    0x06: MBC2,
     0x08: MBC,
     0x09: MBC,
     #0x0B: MMM01,
