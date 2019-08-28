@@ -1,10 +1,12 @@
 import datetime
 
 class MBC(object):
+    ROM_BANK_SIZE = 0x4000
+    RAM_BANK_SIZE = 0x2000
     def __init__(self, conn):
         self.conn = conn
         if conn.romsize < 8:
-            self.nbanks = 2 << conn.romsize
+            self.nbanks = (0x8000 // self.ROM_BANK_SIZE) << conn.romsize
         elif conn.romsize == 0x52:
             self.nbanks = 72
         elif conn.romsize == 0x53:
@@ -34,11 +36,11 @@ class MBC(object):
     def select_ram_bank(self, bank):
         self.conn.write(0x4000, bank)
 
-    def dump_rom(self, cb=None):
-        rom = [self.conn.read_ec(0x0, 0x4000)]
+    def dump_rom(self, cb=None, retries=None):
+        rom = [self.conn.read_ec(0x0, self.ROM_BANK_SIZE)]
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
-            rom.append(self.conn.read_ec(0x4000, 0x4000))
+            rom.append(self.conn.read_ec(0x4000, self.ROM_BANK_SIZE, retries))
             if cb:
                 cb(i, rom[-1])
         return b''.join(rom)
@@ -46,16 +48,16 @@ class MBC(object):
     def dump_ram(self):
         ram = []
         for i in range(self.ramsize // 0x800):
-            if not i & 3:
-                self.select_ram_bank(i // 4)
-            ram.append(self.conn.read_ec(0xA000 + (i & 3) * 0x800, 0x800))
+            if not i & ((self.RAM_BANK_SIZE // 0x800) - 1):
+                self.select_ram_bank(i // (self.RAM_BANK_SIZE // 0x800))
+            ram.append(self.conn.read_ec(0xA000 + (i & ((self.RAM_BANK_SIZE // 0x800) - 1)) * 0x800, 0x800))
         return b''.join(ram)
 
     def restore_ram(self, ram):
         for i in range(self.ramsize):
-            if not i & 0x1FFF:
-                self.select_ram_bank(i // 0x2000)
-            self.conn.write_ec(0xA000 + (i & 0x1FFF), ram[i])
+            if not i & (self.RAM_BANK_SIZE - 1):
+                self.select_ram_bank(i // self.RAM_BANK_SIZE)
+            self.conn.write_ec(0xA000 + (i & (self.RAM_BANK_SIZE - 1)), ram[i])
 
 class MBC1(MBC):
     BANK_MODE_ROM = 0
@@ -72,11 +74,11 @@ class MBC1(MBC):
         self.set_bank_mode(self.BANK_MODE_RAM)
         super(MBC1, self).select_ram_bank(bank)
 
-    def dump_rom(self, cb=None):
+    def dump_rom(self, cb=None, retries=None):
         rom = [self.conn.read_ec(0x0, 0x4000)]
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
-            rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000))
+            rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000, retries))
             if cb:
                 cb(i, rom[-1])
         return b''.join(rom)
@@ -123,6 +125,16 @@ class MBC5(MBC):
 
     def set_rumble(self, on=True):
         self.select_ram_bank(8 * on)
+
+class MBC6(MBC):
+    ROM_BANK_SIZE = 0x2000
+    RAM_BANK_SIZE = 0x1000
+    def select_rom_bank(self, bank, block=0):
+        self.conn.write(0x27FF + block * 0x1000, bank)
+        self.conn.write(0x2800 + block * 0x1000, 0)
+
+    def select_ram_bank(self, bank, block=0):
+        self.conn.write(0x400 + block * 0x400, bank)
 
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
@@ -329,7 +341,7 @@ MAPPINGS = {
     0x1C: MBC5,
     0x1D: MBC5,
     0x1E: MBC5,
-    #0x20: MBC6,
+    0x20: MBC6,
     0x22: MBC7,
     0xFC: GBCamera,
     0xFD: TAMA5,
