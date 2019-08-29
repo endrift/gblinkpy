@@ -20,6 +20,12 @@ class LinkParallel:
     def rx(self):
         return self.tx(0)
 
+    def rxb(self, n=1):
+        bstring = b''
+        for i in range(size):
+            bstring += struct.pack("B", self.rx())
+        return bstring
+
 class LinkSerial:
     def __init__(self, p):
         self.p = p
@@ -30,3 +36,11 @@ class LinkSerial:
 
     def rx(self):
         return self.tx(0)
+
+    def rxb(self, n=1):
+        bstring = b''
+        while n > 0:
+            self.p.write(bytes([0] * min(0x100, n)))
+            bstring += self.p.read(min(0x100, n))
+            n -= 0x100
+        return bstring

@@ -59,10 +59,8 @@ class LinkDL:
         self.gamename = self._read_string(16)
 
     def _read_bytestring(self, size):
-        bstring = b''
-        for i in range(size):
-            bstring += struct.pack("B", self._read8())
-        return bstring
+        time.sleep(self.DELAY)
+        return self.link.rxb(size)
 
     def connect(self):
         if not self._connect():

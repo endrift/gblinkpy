@@ -14,4 +14,5 @@ void loop() {
   while (!(SPSR & (1<<SPIF)));
   ch = SPDR;
   Serial.write(ch);
+  delayMicroseconds(100);
 }
