@@ -37,10 +37,18 @@ class MBC(object):
         self.conn.write(0x4000, bank)
 
     def dump_rom(self, cb=None, retries=None):
-        rom = [self.conn.read_ec(0x0, self.ROM_BANK_SIZE)]
+        if retries != 0:
+            rom = [self.conn.read_ec(0x0, self.ROM_BANK_SIZE, retries)]
+        else:
+            rom = [self.conn.read(0x0, self.ROM_BANK_SIZE)]
+        if cb:
+            cb(0, rom[0])
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
-            rom.append(self.conn.read_ec(0x4000, self.ROM_BANK_SIZE, retries))
+            if retries != 0:
+                rom.append(self.conn.read_ec(0x4000, self.ROM_BANK_SIZE, retries))
+            else:
+                rom.append(self.conn.read(0x4000, self.ROM_BANK_SIZE))
             if cb:
                 cb(i, rom[-1])
         return b''.join(rom)
@@ -75,10 +83,18 @@ class MBC1(MBC):
         super(MBC1, self).select_ram_bank(bank)
 
     def dump_rom(self, cb=None, retries=None):
-        rom = [self.conn.read_ec(0x0, 0x4000)]
+        if retries != 0:
+            rom = [self.conn.read_ec(0x0, 0x4000, retries)]
+        else:
+            rom = [self.conn.read(0x0, 0x4000)]
+        if cb:
+            cb(0, rom[0])
         for i in range(1, self.nbanks):
             self.select_rom_bank(i)
-            rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000, retries))
+            if retries != 0:
+                rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000, retries))
+            else:
+                rom.append(self.conn.read(0x4000 if i & 0x1F else 0x0000, 0x4000))
             if cb:
                 cb(i, rom[-1])
         return b''.join(rom)
