@@ -136,6 +136,32 @@ class MBC6(MBC):
     def select_ram_bank(self, bank, block=0):
         self.conn.write(0x400 + block * 0x400, bank)
 
+    def select_flash_bank(self, bank, block=0):
+        self.conn.write(0x27FF + block * 0x1000, bank)
+        self.conn.write(0x2800 + block * 0x1000, 8)
+
+    def set_flash_writable(self, writable=True):
+        self.conn.write(0x1000, 1)
+        self.conn.write(0x0C00, int(writable))
+        self.conn.write(0x1000, 0)
+
+    def send_flash_command(self, cmd):
+        self.set_flash_writable(True)
+        self.select_flash_bank(2, 1)
+        self.conn.write(0x7555, 0xAA)
+        self.select_flash_bank(1, 1)
+        self.conn.write(0x6AAA, 0x55)
+        self.select_flash_bank(2, 1)
+        self.conn.write(0x7555, cmd)
+
+    def flash_jedec_id(self):
+        self.send_flash_command(0x90)
+        self.select_flash_bank(0, 1)
+        mfg, dev = self.conn.read_ec(0x6000, 2)
+        self.send_flash_command(0xF0)
+        self.set_flash_writable(False)
+        return mfg, dev
+
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
 
