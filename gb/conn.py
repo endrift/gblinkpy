@@ -3,7 +3,7 @@ import struct
 import time
 
 class LinkDL:
-    DELAY = 0.0001
+    DELAY = 0.0004
 
     def __init__(self, link):
         self.link = link
@@ -17,7 +17,7 @@ class LinkDL:
 
     def _connect(self):
         connected = False
-        for i in range(100):
+        for i in range(0x800):
             if self._write8(0x9A) == 0xB4:
                 connected = True
                 break
@@ -35,11 +35,9 @@ class LinkDL:
         return connected
 
     def _read8(self):
-        time.sleep(self.DELAY)
         return self.link.rx()
 
     def _write8(self, value):
-        time.sleep(self.DELAY)
         return self.link.tx(value)
 
     def _read16(self):
@@ -75,7 +73,9 @@ class LinkDL:
         return True
 
     def read(self, address, length=1):
+        time.sleep(self.DELAY)
         self._write8(0x59)
+        time.sleep(self.DELAY)
         self._write8(address >> 8)
         self._write8(address & 0xFF)
         self._write8(length >> 8)
@@ -101,7 +101,9 @@ class LinkDL:
         return b''.join(bstrings)
 
     def write(self, address, value):
+        time.sleep(self.DELAY)
         self._write8(0x49)
+        time.sleep(self.DELAY)
         self._write8(address >> 8)
         self._write8(address & 0xFF)
         self._write8(value)
@@ -113,11 +115,11 @@ class LinkDL:
                 break
 
 class Link2(LinkDL):
-    DELAY = 0.001
-
     def read_ec(self, address, length, limit=None):
         while limit is None or limit > 0:
+            time.sleep(self.DELAY)
             self._write8(0x5b)
+            time.sleep(self.DELAY)
             self._write8(address >> 8)
             self._write8(address & 0xFF)
             self._write8(length >> 8)
