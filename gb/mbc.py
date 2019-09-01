@@ -161,22 +161,40 @@ class MBC6(MBC):
         self.conn.write(0x0C00, int(writable))
         self.conn.write(0x1000, 0)
 
-    def send_flash_command(self, cmd):
-        self.set_flash_writable(True)
+    def send_flash_command(self, cmd, bank=2, address=0x7555):
         self.select_flash_bank(2, 1)
         self.conn.write(0x7555, 0xAA)
         self.select_flash_bank(1, 1)
         self.conn.write(0x6AAA, 0x55)
-        self.select_flash_bank(2, 1)
-        self.conn.write(0x7555, cmd)
+        self.select_flash_bank(bank, 1)
+        self.conn.write(address, cmd)
 
     def flash_jedec_id(self):
+        self.set_flash_writable(True)
         self.send_flash_command(0x90)
         self.select_flash_bank(0, 1)
         mfg, dev = self.conn.read_ec(0x6000, 2)
         self.send_flash_command(0xF0)
         self.set_flash_writable(False)
         return mfg, dev
+
+    def flash_erase_block(self, bank, address):
+        self.set_flash_writable(True)
+        self.send_flash_command(0x80)
+        self.send_flash_command(0x30, bank, 0x6000 + address * 0x80)
+        self.send_flash_command(0xF0)
+        self.set_flash_writable(False)
+
+    def flash_write_block(self, bank, address, block):
+        self.flash_erase_block(bank, address)
+        self.set_flash_writable(True)
+        self.send_flash_command(0xA0)
+        self.select_flash_bank(bank, 1)
+        self.conn.write(0x1000, 1)
+        for i, b in enumerate(block):
+            self.conn.write(0x6000 + address * 0x80 + i, b)
+        self.conn.write(0x1000, 0)
+        self.set_flash_writable(False)
 
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
