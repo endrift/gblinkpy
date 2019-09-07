@@ -35,9 +35,11 @@ class LinkDL:
         return connected
 
     def _read8(self):
+        time.sleep(self.DELAY)
         return self.link.rx()
 
     def _write8(self, value):
+        time.sleep(self.DELAY)
         return self.link.tx(value)
 
     def _read16(self):
@@ -73,9 +75,7 @@ class LinkDL:
         return True
 
     def read(self, address, length=1):
-        time.sleep(self.DELAY)
         self._write8(0x59)
-        time.sleep(self.DELAY)
         self._write8(address >> 8)
         self._write8(address & 0xFF)
         self._write8(length >> 8)
@@ -101,9 +101,7 @@ class LinkDL:
         return b''.join(bstrings)
 
     def write(self, address, value):
-        time.sleep(self.DELAY)
         self._write8(0x49)
-        time.sleep(self.DELAY)
         self._write8(address >> 8)
         self._write8(address & 0xFF)
         self._write8(value)

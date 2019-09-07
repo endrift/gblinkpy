@@ -27,7 +27,7 @@ class LinkParallel:
         return bstring
 
 class LinkSerial:
-    SPAN = 0x200
+    SPAN = 0x400
     DEBUG = False
 
     def __init__(self, p):
@@ -42,6 +42,10 @@ class LinkSerial:
 
     def rx(self):
         return self.tx(0)
+
+    def txb(self, block):
+        self.p.write(bytes(block))
+        return self.p.read(len(block))
 
     def rxb(self, n=1):
         bstring = b''
