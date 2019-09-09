@@ -45,8 +45,6 @@ class MBC(object):
         if cb:
             cb(0, rom[0])
         for i in range(1, self.nbanks):
-            # Decrease chances of the ROM bank signal being missed
-            self.select_rom_bank(i)
             self.select_rom_bank(i)
             if retries != 0:
                 rom.append(self.conn.read_ec(0x4000, self.ROM_BANK_SIZE, retries))
@@ -93,7 +91,6 @@ class MBC1(MBC):
         if cb:
             cb(0, rom[0])
         for i in range(1, self.nbanks):
-            self.select_rom_bank(i)
             self.select_rom_bank(i)
             if retries != 0:
                 rom.append(self.conn.read_ec(0x4000 if i & 0x1F else 0x0000, 0x4000, retries))
@@ -167,12 +164,9 @@ class MBC6(MBC):
 
     def send_flash_command(self, cmd, bank=2, address=0x7555):
         self.select_flash_bank(2, 1)
-        self.select_flash_bank(2, 1)
         self.conn.write(0x7555, 0xAA)
         self.select_flash_bank(1, 1)
-        self.select_flash_bank(1, 1)
         self.conn.write(0x6AAA, 0x55)
-        self.select_flash_bank(bank, 1)
         self.select_flash_bank(bank, 1)
         print(hex(bank), hex(address), hex(cmd))
         self.conn.write(address, cmd)
@@ -200,12 +194,10 @@ class MBC6(MBC):
         self.unlock_flash(True)
         self.send_flash_command(0xA0)
         self.select_flash_bank(bank, 1)
-        self.select_flash_bank(bank, 1)
         base = 0x6000 + (address & ~0x7F)
         self.conn.write(0x1000, 1)
         for i, b in enumerate(block):
             self.conn.write(base + i, b)
-        self.conn.write(base + len(block) - 1, 0x00)
         self.conn.write(base + len(block) - 1, 0x00)
         while not self.conn.read(base + len(block) - 1)[0] & 0x80:
             pass
