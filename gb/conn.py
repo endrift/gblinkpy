@@ -113,26 +113,45 @@ class LinkDL:
                 break
 
 class Link2(LinkDL):
-    def read_ec(self, address, length, limit=None):
-        while limit is None or limit > 0:
-            time.sleep(self.DELAY)
-            self._write8(0x5b)
-            time.sleep(self.DELAY)
-            self._write8(address >> 8)
-            self._write8(address & 0xFF)
-            self._write8(length >> 8)
-            self._write8(length & 0xFF)
-            bstring = b''
-            calculated_checksum = 0
-            for _ in range(length):
-                x = self._read8()
-                calculated_checksum += x
-                calculated_checksum &= 0xFFFF
-                bstring += struct.pack("B", x)
-            checksum = (self._read8() << 8) | self._read8()
-            if calculated_checksum == checksum:
-                return bstring
-            if limit is not None:
-                limit -= 1
-        return None
+    def _connect(self):
+        connected = False
+        for i in range(0x400):
+            if self._write8(0x99) == 0xB4:
+                connected = True
+                break
 
+        if not connected:
+            return False
+        connected = False
+        time.sleep(0.001)
+
+        for i in range(100):
+            if self._write8(0x99) == 0x1D:
+                connected = True
+                break
+
+        return connected
+
+    def connect(self):
+        if not self._connect():
+            return False
+        self._read_header()
+        if self._read8() != 0:
+            return False
+        if self._read8() != 0xFF:
+            return False
+        self.connected = True
+        return True
+
+
+def detect_link(link):
+    dl = Link2(link)
+    if dl.connect():
+        return dl
+    if dl._write8(0) == 0xB4:
+        if dl.connect():
+            return dl
+        dl = LinkDL(link)
+        if dl.connect():
+            return dl
+    return None
