@@ -10,7 +10,7 @@ void setup() {
 void loop() {
   while (Serial.available()) {
     byte ch = Serial.read();
-    delayMicroseconds(25);
+    delayMicroseconds(20);
     SPDR = ch;
     while (!(SPSR & (1<<SPIF)));
     ch = SPDR;
