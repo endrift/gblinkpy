@@ -112,6 +112,13 @@ class LinkDL:
             if ord(self.read(address)) == value:
                 break
 
+    def mark_busy(self, busy=True):
+        pass
+
+    def mark_idle(self):
+        self.mark_busy(False)
+
+
 class Link2(LinkDL):
     def _connect(self):
         connected = False
@@ -142,6 +149,13 @@ class Link2(LinkDL):
             return False
         self.connected = True
         return True
+
+    def mark_busy(self, busy=True):
+        if busy:
+            self._write8(0x89)
+        else:
+            self._write8(0x8A)
+        time.sleep(0.02)
 
 
 def detect_link(link):

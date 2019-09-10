@@ -38,6 +38,7 @@ class MBC(object):
         self.conn.write(0x4000, bank)
 
     def dump_rom(self, cb=None, retries=None):
+        self.conn.mark_busy()
         if retries != 0:
             rom = [self.conn.read_ec(0x0, self.ROM_BANK_SIZE, retries)]
         else:
@@ -52,21 +53,26 @@ class MBC(object):
                 rom.append(self.conn.read(0x4000, self.ROM_BANK_SIZE))
             if cb:
                 cb(i, rom[-1])
+        self.conn.mark_idle()
         return b''.join(rom)
 
     def dump_ram(self):
+        self.conn.mark_busy()
         ram = []
         for i in range(self.ramsize // 0x800):
             if not i & ((self.RAM_BANK_SIZE // 0x800) - 1):
                 self.select_ram_bank(i // (self.RAM_BANK_SIZE // 0x800))
             ram.append(self.conn.read_ec(0xA000 + (i & ((self.RAM_BANK_SIZE // 0x800) - 1)) * 0x800, 0x800))
+        self.conn.mark_idle()
         return b''.join(ram)
 
     def restore_ram(self, ram):
+        self.conn.mark_busy()
         for i in range(self.ramsize):
             if not i & (self.RAM_BANK_SIZE - 1):
                 self.select_ram_bank(i // self.RAM_BANK_SIZE)
             self.conn.write_ec(0xA000 + (i & (self.RAM_BANK_SIZE - 1)), ram[i])
+        self.conn.mark_idle()
 
 class MBC1(MBC):
     BANK_MODE_ROM = 0
@@ -84,6 +90,7 @@ class MBC1(MBC):
         super(MBC1, self).select_ram_bank(bank)
 
     def dump_rom(self, cb=None, retries=None):
+        self.conn.mark_busy()
         if retries != 0:
             rom = [self.conn.read_ec(0x0, 0x4000, retries)]
         else:
@@ -98,6 +105,7 @@ class MBC1(MBC):
                 rom.append(self.conn.read(0x4000 if i & 0x1F else 0x0000, 0x4000))
             if cb:
                 cb(i, rom[-1])
+        self.conn.mark_idle()
         return b''.join(rom)
 
 class MBC2(MBC):
@@ -106,17 +114,21 @@ class MBC2(MBC):
         self.ramsize = 0x100
 
     def dump_ram(self):
+        self.conn.mark_busy()
         bs = self.conn.read_ec(0xA000, 0x200)
         ram = []
         for i in range(self.ramsize):
             ram.append(((bs[i * 2 + 1] & 0xF) << 4) | (bs[i * 2] & 0xF))
+        self.conn.mark_idle()
         return bytes(ram)
 
     def restore_ram(self, ram):
+        self.conn.mark_busy()
         for i in range(len(ram)):
             b = ram[i]
             self.conn.write_ec(0xA000 + i * 2, 0xF0 | (b & 0xF))
             self.conn.write_ec(0xA001 + i * 2, 0xF0 | (b >> 4))
+        self.conn.mark_idle()
 
 class MBC3(MBC):
     def latch_rtc(self):
@@ -180,6 +192,7 @@ class MBC6(MBC):
         return mfg, dev
 
     def flash_erase_block(self, bank, address):
+        self.conn.mark_busy()
         self.unlock_flash(True)
         self.conn.write(0x1000, 1)
         self.send_flash_command(0x80)
@@ -189,8 +202,10 @@ class MBC6(MBC):
         self.send_flash_command(0xF0, bank, 0x6000 + (address & ~0x7F))
         self.send_flash_command(0xF0, bank, 0x6000 + (address & ~0x7F))
         self.unlock_flash(False)
+        self.conn.mark_idle()
 
     def flash_write_block(self, bank, address, block):
+        self.conn.mark_busy()
         self.unlock_flash(True)
         self.send_flash_command(0xA0)
         self.select_flash_bank(bank, 1)
@@ -205,6 +220,7 @@ class MBC6(MBC):
         self.conn.write(base + len(block) - 1, 0xF0)
         self.conn.read(base, len(block))
         self.conn.write(0x1000, 0)
+        self.conn.mark_idle()
 
 class MBC7(MBC):
     ACCEL_OFFSET = 0x81D0
@@ -298,20 +314,24 @@ class MBC7(MBC):
         self.eeprom_wait()
 
     def dump_ram(self):
+        self.conn.mark_busy()
         bstring = b''
         for i in range(0x80):
             word = self.ram_read(i)
             bstring += chr(word >> 8)
             bstring += chr(word & 0xFF)
+        self.conn.mark_idle()
         return bstring
 
     def restore_ram(self, ram):
+        self.conn.mark_busy()
         self.enable_write()
         for i in range(0x80):
             word = ram[i * 2] << 8
             word += ram[i * 2 + 1]
             self.ram_write(i, word)
         self.disable_write()
+        self.conn.mark_idle()
 
 class GBCamera(MBC):
     def select_camera(self):
@@ -333,10 +353,12 @@ class GBCamera(MBC):
         self.conn.write(0xA003, value & 0xFF)
 
     def take_photo(self):
+        self.conn.mark_busy()
         self.select_camera()
         self.conn.write(0xA000, 1)
         while ord(self.conn.read_ec(0xA000)) & 1:
            time.sleep(0.05)
+        self.conn.mark_idle()
 
 class TAMA5(MBC):
     def __init__(self, conn):
@@ -360,6 +382,7 @@ class TAMA5(MBC):
         pass
 
     def dump_ram(self):
+        self.conn.mark_busy()
         self.unlock_ram()
         ram = []
         for i in range(self.ramsize):
@@ -372,9 +395,11 @@ class TAMA5(MBC):
             self.conn.write(0xA001, 0xC)
             lo = ord(self.conn.read_ec(0xA000)) & 0xF
             ram.append((hi << 4) | lo)
+        self.conn.mark_idle()
         return bytes(ram)
 
     def restore_ram(self, ram):
+        self.conn.mark_busy()
         self.unlock_ram()
         for i in range(self.ramsize):
             self.conn.write(0xA001, 4)
@@ -385,6 +410,7 @@ class TAMA5(MBC):
             self.conn.write(0xA000, i >> 4)
             self.conn.write(0xA001, 7)
             self.conn.write(0xA000, i & 0xF)
+        self.conn.mark_idle()
 
 
 
