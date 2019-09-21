@@ -28,8 +28,8 @@ class MBC(object):
         else:
             self.ramsize = 0
 
-    def unlock_ram(self):
-        self.conn.write(0x0000, 0xA)
+    def unlock_ram(self, unlock=True):
+        self.conn.write(0x0000, 0xA if unlock else 0)
 
     def select_rom_bank(self, bank):
         self.conn.write(0x2100, bank)
@@ -412,6 +412,12 @@ class TAMA5(MBC):
             self.conn.write(0xA000, i & 0xF)
         self.conn.mark_idle()
 
+class HuC1(MBC):
+    pass
+
+class HuC3(HuC1):
+    def select_rom_bank(self, bank):
+        self.conn.write(0x2000, bank)
 
 
 MAPPINGS = {
@@ -441,8 +447,8 @@ MAPPINGS = {
     0x22: MBC7,
     0xFC: GBCamera,
     0xFD: TAMA5,
-    #0xFE: HuC3,
-    #0xFF: HuC1
+    0xFE: HuC3,
+    0xFF: HuC1
 }
 
 def detect(conn):
